@@ -269,12 +269,21 @@
             }));
             let dealerScore = calculateScore(dealerCards);
 
-            while (dealerScore < 17) {
-                const newCard = getRandomCard();
-                dealerHand.appendChild(createCard(newCard.value, newCard.suit));
-                dealerCards.push(newCard);
-                dealerScore = calculateScore(dealerCards);
-            }
+           function isSoft17(cards, score) {
+    return score === 17 && cards.some(card => card.value === "A");
+}
+
+while (
+    dealerScore < 17 || 
+    (dealerScore < playerScore && playerScore <= 21) ||
+    isSoft17(dealerCards, dealerScore)
+) {
+    const newCard = getRandomCard();
+    dealerHand.appendChild(createCard(newCard.value, newCard.suit));
+    dealerCards.push(newCard);
+    dealerScore = calculateScore(dealerCards);
+}
+
 
             document.getElementById("dealer-score").textContent = dealerScore;
             const playerScore = calculateScore(Array.from(document.getElementById("player-hand").children).map(card => ({
