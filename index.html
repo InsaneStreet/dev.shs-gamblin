@@ -130,7 +130,8 @@
     </div>
 
     <script>
-        let currentMoney = localStorage.getItem("casinoMoney") || 1000;
+        let currentMoney = parseInt(localStorage.getItem("casinoMoney"), 10);
+        if (isNaN(currentMoney) || currentMoney < 0) currentMoney = 1000;
         localStorage.setItem("casinoMoney", currentMoney);
         document.getElementById("money-amount").textContent = currentMoney;
         let currentBet = 0;
@@ -155,19 +156,20 @@
 
         function calculateScore(cards) {
             let score = 0;
-            let hasAce = false;
+            let aces = 0;
             for (const card of cards) {
                 if (card.value === "J" || card.value === "Q" || card.value === "K") {
                     score += 10;
                 } else if (card.value === "A") {
-                    hasAce = true;
+                    aces++;
                     score += 11;
                 } else {
                     score += parseInt(card.value);
                 }
             }
-            if (hasAce && score > 21) {
+            while (aces > 0 && score > 21) {
                 score -= 10;
+                aces--;
             }
             return score;
         }
@@ -216,8 +218,8 @@
             document.getElementById("dealer-score").textContent = "0";
             document.getElementById("result").textContent = "";
 
-            let playerCards = [getRandomCard()];
-            let dealerCards = [getRandomCard()];
+            let playerCards = [getRandomCard(), getRandomCard()];
+            let dealerCards = [getRandomCard(), getRandomCard()];
 
             let playerScore = calculateScore(playerCards);
             let dealerScore = calculateScore(dealerCards);
@@ -229,8 +231,13 @@
             document.getElementById("dealer-score").textContent = dealerScore;
 
             if (playerScore === 21) {
-                document.getElementById("result").textContent = "Player Blackjack! You Win!";
-                currentMoney += Math.ceil(betAmount * calculateMultiplier(betAmount));
+                if (dealerScore === 21) {
+                    document.getElementById("result").textContent = "Both Blackjack! It's a Tie!";
+                    currentMoney += betAmount;
+                } else {
+                    document.getElementById("result").textContent = "Player Blackjack! You Win!";
+                    currentMoney += Math.ceil(betAmount * calculateMultiplier(betAmount));
+                }
                 localStorage.setItem("casinoMoney", currentMoney);
                 document.getElementById("money-amount").textContent = currentMoney;
                 endGame();
@@ -268,9 +275,15 @@
                 suit: card.children[1].textContent
             }));
             let dealerScore = calculateScore(dealerCards);
+            const playerScore = calculateScore(Array.from(document.getElementById("player-hand").children).map(card => ({
+                value: card.querySelector(".card-value").textContent,
+                suit: card.children[1].textContent
+            })));
 
            function isSoft17(cards, score) {
-    return score === 17 && cards.some(card => card.value === "A");
+    if (score !== 17 || !cards.some(card => card.value === "A")) return false;
+    const hardTotal = cards.reduce((sum, card) => sum + (card.value === "A" ? 1 : (isNaN(card.value) ? 10 : parseInt(card.value))), 0);
+    return hardTotal !== 17;
 }
 
 while (
@@ -286,10 +299,6 @@ while (
 
 
             document.getElementById("dealer-score").textContent = dealerScore;
-            const playerScore = calculateScore(Array.from(document.getElementById("player-hand").children).map(card => ({
-                value: card.querySelector(".card-value").textContent,
-                suit: card.children[1].textContent
-            })));
 
             document.getElementById("result").textContent = determineWinner(playerScore, dealerScore, currentBet);
             localStorage.setItem("casinoMoney", currentMoney);
@@ -303,8 +312,9 @@ while (
             document.getElementById("reset-button").style.display = "block";
         }
 
-        function resetGame() {
+        function placeBet() {
             const betAmount = prompt("Enter your bet amount:");
+            if (betAmount === null) return;
             if (betAmount.startsWith("setmoney=")) {
                 const amount = betAmount.split("=")[1];
                 const parsedAmount = parseInt(amount);
@@ -332,34 +342,7 @@ while (
             startGame(currentBet);
         }
 
-        document.getElementById("blackjack-button").addEventListener("click", () => {
-            let betAmount = prompt("Enter your bet amount:");
-            if (betAmount.startsWith("setmoney=")) {
-                const amount = betAmount.split("=")[1];
-                const parsedAmount = parseInt(amount);
-                if (!isNaN(parsedAmount) && parsedAmount >= 0) {
-                    currentMoney = parsedAmount;
-                    localStorage.setItem("casinoMoney", currentMoney);
-                    document.getElementById("money-amount").textContent = currentMoney;
-                    return;
-                } else {
-                    alert("Invalid amount. Please enter a valid number after 'setmoney='.");
-                    return;
-                }
-            }
-
-            const parsedBetAmount = Number(betAmount);
-            if (!Number.isInteger(parsedBetAmount) || parsedBetAmount <= 0 || parsedBetAmount > currentMoney) {
-                alert("Invalid bet amount. Please enter a whole number within your available money.");
-                return;
-            }
-
-            currentBet = parsedBetAmount;
-            currentMoney -= currentBet;
-            localStorage.setItem("casinoMoney", currentMoney);
-            document.getElementById("money-amount").textContent = currentMoney;
-            startGame(parsedBetAmount);
-        });
+        document.getElementById("blackjack-button").addEventListener("click", placeBet);
 
         document.getElementById("hit-button").addEventListener("click", hit);
         document.getElementById("stand-button").addEventListener("click", () => {
@@ -367,7 +350,7 @@ while (
             dealerTurn();
         });
 
-        document.getElementById("reset-button").addEventListener("click", resetGame);
+        document.getElementById("reset-button").addEventListener("click", placeBet);
     </script>
 </body>
 </html>
